@@ -1,0 +1,103 @@
+local player = game.Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
+
+local ball = workspace.WorkspaceCom
+    :WaitForChild("001_SoccerBalls")
+    :WaitForChild("SoccerY6E_T")
+
+ball.Anchored = false
+ball.CanCollide = false
+ball.CanTouch = false
+ball.CanQuery = false
+
+pcall(function()
+    ball:SetNetworkOwner(player)
+end)
+
+local radius = 6
+local heightOffset = .5
+local speed = 1.5
+
+local triggerDistance = 15
+
+local function getNearestPlayer()
+    local nearest = nil
+    local nearestDist = math.huge
+
+    for _, plr in ipairs(game.Players:GetPlayers()) do
+        if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local dist = (plr.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+            if dist < nearestDist then
+                nearestDist = dist
+                nearest = plr
+            end
+        end
+    end
+
+    return nearest, nearestDist
+end
+
+task.spawn(function()
+    local angle = 0
+    local t = 0
+
+    while task.wait() do
+        local nearest, dist = getNearestPlayer()
+
+        if nearest and dist < triggerDistance then
+            local targetHRP = nearest.Character.HumanoidRootPart
+
+            local flingPower = 999999
+
+            ball.AssemblyAngularVelocity = Vector3.new(
+                math.random(-flingPower, flingPower),
+                math.random(-flingPower, flingPower),
+                math.random(-flingPower, flingPower)
+            )
+
+            ball.AssemblyLinearVelocity = Vector3.new(
+                math.random(-flingPower, flingPower),
+                math.random(flingPower * 0.5, flingPower),
+                math.random(-flingPower, flingPower)
+            )
+
+            local vel = targetHRP.AssemblyLinearVelocity
+            local predictionTime = 0.12
+            local predictedPos = targetHRP.Position + vel * predictionTime
+
+            t += 0.15
+            local yOffset = math.sin(t * 12) * 2
+
+            ball.CFrame = CFrame.new(predictedPos) * CFrame.new(0, yOffset, 0)
+
+        else
+            angle += speed * 0.05
+
+            local x = math.cos(angle) * radius
+            local z = math.sin(angle) * radius
+
+            ball.AssemblyLinearVelocity = Vector3.zero
+            ball.AssemblyAngularVelocity = Vector3.zero
+
+            ball.CFrame = CFrame.new(
+                hrp.Position.X + x,
+                hrp.Position.Y + heightOffset,
+                hrp.Position.Z + z
+            )
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.03) do
+        if (ball.Position - hrp.Position).Magnitude > 999999999 then
+            ball.CFrame = hrp.CFrame * CFrame.new(radius, heightOffset, 0)
+        end
+
+        if ball.Anchored then
+            ball.Anchored = false
+            ball.CFrame = hrp.CFrame * CFrame.new(radius, heightOffset, 0)
+        end
+    end
+end)
